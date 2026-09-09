@@ -4,17 +4,25 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+import seaborn as sns
 from matplotlib.colors import ListedColormap
 from rasterio.windows import from_bounds
 from sklearn.decomposition import PCA
 
+sns.set_theme(
+    context="notebook",
+    style="whitegrid",
+    font="serif",
+    rc={"font.serif": ["Times New Roman", "Liberation Serif", "DejaVu Serif"]},
+)
 
-def read_palette(path, class_codes):
+
+def read_palette(source, class_codes):
     colors = np.zeros((256, 4), dtype="uint8")
-    with Path(path).open() as stream:
-        for row in csv.reader(stream):
-            if int(row[0]) in class_codes:
-                colors[int(row[0])] = list(map(int, row[1:5]))
+    with rasterio.open(source) as src:
+        palette = src.colormap(1)
+    for code in class_codes:
+        colors[code] = palette[int(code)]
     return colors
 
 
@@ -37,6 +45,7 @@ def plot_land_cover(source, colors, output_path):
                 extent=(bounds[0], bounds[2], bounds[1], bounds[3]),
                 interpolation="nearest",
             )
+            ax.grid(False)
             ax.set(
                 title=title, xlabel="Longitude", ylabel="Latitude", facecolor="#eeeeee"
             )
@@ -117,6 +126,7 @@ def plot_comparison(
     axes[0, 1].imshow(np.where(valid[..., None], rgb, 0), interpolation="nearest")
     axes[0, 1].set_title(f"{hidden_dim}-D bottleneck → PCA RGB")
     for ax in axes.ravel():
+        ax.grid(False)
         ax.set_axis_off()
     fig.savefig(output_path, dpi=180, bbox_inches="tight")
     plt.show()

@@ -12,7 +12,7 @@ uv run jupyter lab starter.ipynb
 Run [starter.ipynb](starter.ipynb) from top to bottom.
 It downloads the full [CGLC-MODIS-LCZ map from Hugging Face](https://huggingface.co/datasets/taylor-geospatial/neural-earth-fields-hackathon) and trains on land and lake pixels sampled across the entire map.
 Lakes (21) are included. Ocean (17) and invalid labels are excluded from training and evaluation, and masked in exported rasters.
-The notebook plots the global land-cover map and three zoomed-in views, then uses PyTorch Lightning to train and plot cross-entropy, accuracy, macro F1, and mean IoU, then fits a linear classifier on frozen embeddings and compares land cover, predictions, and PCA RGB.
+The notebook plots the global land-cover map and three zoomed-in views, then uses PyTorch Lightning and TorchMetrics to train and plot cross-entropy, accuracy, macro F1, and mean IoU, then fits a linear classifier on frozen embeddings and compares land cover, predictions, and PCA RGB.
 The current Wrap baseline learns broad patterns but misses local land-cover boundaries.
 
 Edit the configuration cell to change model dimensions, training steps, batch size, or sampling settings.
@@ -31,3 +31,5 @@ The [source dataset](https://zenodo.org/records/7670653) is by Demuzere, He, Mar
 Python 3.12–3.14 is supported. `uv sync` creates `.venv`; select `.venv/bin/python` in your editor. Dependencies live in `pyproject.toml`, with resolved versions in `uv.lock`. Use `uv add PACKAGE` to add a dependency.
 
 Plotting and PCA live in `plot.py`, keeping the notebook focused on data, training, and embeddings.
+
+Figures use Seaborn’s notebook context and a Times-style serif font: Times New Roman when installed, with Liberation Serif and DejaVu Serif as fallbacks.
