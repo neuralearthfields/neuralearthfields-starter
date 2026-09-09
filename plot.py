@@ -1,15 +1,12 @@
 import csv
-from io import BytesIO
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from async_geotiff import GeoTIFF
-from lonboard import Map, RasterLayer
-from lonboard.raster import EncodedImage
+import rasterio
 from matplotlib.colors import ListedColormap
-from obstore.store import LocalStore
-from PIL import Image
+from rasterio.windows import from_bounds
+from sklearn.decomposition import PCA
 
 
 def read_palette(path, class_codes):
@@ -21,19 +18,51 @@ def read_palette(path, class_codes):
     return colors
 
 
-async def plot_cog(source, colors, height=600):
-    source = Path(source)
-    geotiff = await GeoTIFF.open(
-        source.name, store=LocalStore(str(source.parent.resolve()))
-    )
+def plot_land_cover(source, colors, output_path):
+    views = {
+        "Global": None,
+        "Western Europe": (-12, 35, 20, 60),
+        "California": (-124, 32, -114, 42),
+        "Sierra Nevada": (-121, 37, -119, 39),
+    }
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7), layout="constrained")
+    with rasterio.open(source) as src:
+        for ax, (title, bounds) in zip(axes.ravel(), views.items()):
+            bounds = bounds or tuple(src.bounds)
+            window = from_bounds(*bounds, transform=src.transform)
+            aspect = (bounds[2] - bounds[0]) / (bounds[3] - bounds[1])
+            labels = src.read(1, window=window, out_shape=(400, round(400 * aspect)))
+            ax.imshow(
+                colors[labels],
+                extent=(bounds[0], bounds[2], bounds[1], bounds[3]),
+                interpolation="nearest",
+            )
+            ax.set(
+                title=title, xlabel="Longitude", ylabel="Latitude", facecolor="#eeeeee"
+            )
+    fig.savefig(output_path, dpi=160)
+    plt.show()
 
-    def render_tile(tile):
-        buffer = BytesIO()
-        Image.fromarray(colors[tile.array.data[0]]).save(buffer, format="PNG")
-        return EncodedImage(data=buffer.getvalue(), media_type="image/png")
 
-    layer = RasterLayer.from_geotiff(geotiff, render_tile=render_tile)
-    return Map(layer, height=height)
+def pca_rgb(fit_features, features, shape, seed=0):
+    pca = PCA(3, random_state=seed).fit(fit_features)
+    lo, hi = np.percentile(pca.transform(fit_features), [2, 98], axis=0)
+    rgb = np.clip((pca.transform(features) - lo) / np.maximum(hi - lo, 1e-8), 0, 1)
+    print(f"PCA explained variance: {pca.explained_variance_ratio_.round(3)}")
+    return rgb.reshape(*shape, 3)
+
+
+def preview_grid(source, height=256):
+    with rasterio.open(source) as src:
+        width = round(height * src.width / src.height)
+        labels = src.read(1, out_shape=(height, width))
+        rows, cols = np.indices(labels.shape)
+        rows = np.minimum(
+            ((rows + 0.5) * src.height / height).astype(int), src.height - 1
+        )
+        cols = np.minimum(((cols + 0.5) * src.width / width).astype(int), src.width - 1)
+        lon, lat = src.transform * (cols.ravel() + 0.5, rows.ravel() + 0.5)
+    return labels, np.column_stack((lon, lat)).astype("float32")
 
 
 def plot_metrics(path, output_path):
