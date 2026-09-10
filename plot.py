@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
 import seaborn as sns
+from IPython.display import Image, display
 from matplotlib.colors import ListedColormap
 from rasterio.windows import from_bounds
 from sklearn.decomposition import PCA
@@ -15,6 +16,12 @@ sns.set_theme(
     font="serif",
     rc={"font.serif": ["Times New Roman", "Liberation Serif", "DejaVu Serif"]},
 )
+
+
+def show_figure(fig, output_path):
+    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    display(Image(filename=str(output_path), width=round(fig.get_figwidth() * 100)))
 
 
 def read_palette(source, class_codes):
@@ -39,7 +46,7 @@ def plot_land_cover(source, colors, output_path):
             bounds = bounds or tuple(src.bounds)
             window = from_bounds(*bounds, transform=src.transform)
             aspect = (bounds[2] - bounds[0]) / (bounds[3] - bounds[1])
-            labels = src.read(1, window=window, out_shape=(400, round(400 * aspect)))
+            labels = src.read(1, window=window, out_shape=(1200, round(1200 * aspect)))
             ax.imshow(
                 colors[labels],
                 extent=(bounds[0], bounds[2], bounds[1], bounds[3]),
@@ -49,8 +56,7 @@ def plot_land_cover(source, colors, output_path):
             ax.set(
                 title=title, xlabel="Longitude", ylabel="Latitude", facecolor="#eeeeee"
             )
-    fig.savefig(output_path, dpi=160)
-    plt.show()
+    show_figure(fig, output_path)
 
 
 def pca_rgb(fit_features, features, shape, seed=0):
@@ -100,8 +106,7 @@ def plot_metrics(path, output_path):
         if key != "cross_entropy":
             ax.set_ylim(0, 1)
     axes[0, 0].legend()
-    fig.savefig(output_path, dpi=160)
-    plt.show()
+    show_figure(fig, output_path)
 
 
 def plot_comparison(
@@ -128,5 +133,4 @@ def plot_comparison(
     for ax in axes.ravel():
         ax.grid(False)
         ax.set_axis_off()
-    fig.savefig(output_path, dpi=180, bbox_inches="tight")
-    plt.show()
+    show_figure(fig, output_path)
